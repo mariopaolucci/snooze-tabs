@@ -48,6 +48,6 @@ document.getElementById("customTimeForm").addEventListener("submit", () => {
         return;
     }
     
-    browser.runtime.sendMessage({ op: "snooze", args: { time: alarmTime.getTime(), type: "custom" } });
+    browser.runtime.sendMessage({ op: "snooze", args: { time: alarmTime.getTime(), type: "custom", recurring: false } });
     window.close();
 });

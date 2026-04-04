@@ -29,8 +29,25 @@ async function handleAlarm(alarm) {
         if(a.recurring){
           // For recurring, the tab is active, so snoozeTab will snooze it again
           const prefs = await getPreferences();
-          const nextTime = nextMonth(prefs.preferences.TimeOfDay);
-          snoozeTab(nextTime.getTime(), a.type);
+          let nextTime;
+          switch(a.type){
+            case "later":
+              nextTime = later(prefs.preferences.hours);
+              break;
+            case "tomorrow":
+              nextTime = tomorrow(prefs.preferences.TimeOfDay);
+              break;
+            case "weekend":
+              nextTime = weekend(prefs.preferences.TimeOfDay);
+              break;
+            case "nextWeek":
+              nextTime = nextWeek(prefs.preferences.TimeOfDay);
+              break;
+            case "nextMonth":
+              nextTime = nextMonth(prefs.preferences.TimeOfDay);
+              break;
+          }
+          snoozeTab(nextTime.getTime(), a.type, a.recurring);
         }
       }
       browser.notifications.create(a.url,
@@ -75,6 +92,40 @@ function nextMonth(preferredTimeOfDay) {
   return alarmTime;
 }
 
+function later(hours) {
+  var alarmTime = new Date();
+  alarmTime.setHours(alarmTime.getHours() + hours);
+  return alarmTime;
+}
+
+function tomorrow(preferredTimeOfDay) {
+  var alarmTime = new Date();
+  alarmTime.setDate(alarmTime.getDate() + 1);
+  alarmTime.setHours(preferredTimeOfDay.hours);
+  alarmTime.setMinutes(preferredTimeOfDay.minutes);
+  return alarmTime;
+}
+
+function weekend(preferredTimeOfDay) {
+  var alarmTime = new Date();
+  var weekendRemaining = 6 - alarmTime.getDay();
+  if (weekendRemaining === 6) {
+    weekendRemaining += 1;
+  }
+  alarmTime.setDate(alarmTime.getDate() + weekendRemaining);
+  alarmTime.setHours(preferredTimeOfDay.hours);
+  alarmTime.setMinutes(preferredTimeOfDay.minutes);
+  return alarmTime;
+}
+
+function nextWeek(preferredTimeOfDay) {
+  var alarmTime = new Date();
+  alarmTime.setDate(alarmTime.getDate() + ((7 - alarmTime.getDay()) % 7 + 1));
+  alarmTime.setHours(preferredTimeOfDay.hours);
+  alarmTime.setMinutes(preferredTimeOfDay.minutes);
+  return alarmTime;
+}
+
 function reloadViews() {
   var windows = browser.extension.getViews();
   for (var extensionWindow of windows) {
@@ -86,7 +137,7 @@ function inReaderMode(tab) {
   return (tab.url.isInReaderMode || /^(about\:reader\?url\=)/.test(tab.url));
 }
 
-async function snoozeTab(delay, type) {
+async function snoozeTab(delay, type, recurring) {
   // var delay = Date.now() + delaySent.delay * 60 * 1000;
   var tabs = await browser.tabs.query({ currentWindow: true, active: true });
   var tab = tabs[0];
@@ -99,7 +150,7 @@ async function snoozeTab(delay, type) {
     if(alarms == undefined){
       alarms = [];
     }
-    alarms.unshift({ url: tab.url, title: tab.title, delay: delay, pinned: tab.pinned, incognito: tab.incognito, openInReaderMode: tab.isInReaderMode, cookieStoreId: tab.cookieStoreId, type: type, recurring: type === "nextMonth" });
+    alarms.unshift({ url: tab.url, title: tab.title, delay: delay, pinned: tab.pinned, incognito: tab.incognito, openInReaderMode: tab.isInReaderMode, cookieStoreId: tab.cookieStoreId, type: type, recurring: recurring });
     browser.alarms.create(tab.url, { "when": delay });
     storeAlarms(alarms);
     browser.notifications.create(tab.url,
@@ -170,7 +221,7 @@ async function setPreferences(changedPreferences) {
 async function handleMessage(params, sender, sendResponse) {
   switch (params.op) {
     case "snooze":
-      snoozeTab(params.args.time, params.args.type);
+      snoozeTab(params.args.time, params.args.type, params.args.recurring);
       break;
     case "clearAlarm":
       clearAlarm(params.args);
