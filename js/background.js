@@ -13,18 +13,25 @@ async function storedAlarms() {
 async function handleAlarm(alarm) {
   var store = await browser.storage.local.get("alarms");
   var alarms = store.alarms;
-  alarms.forEach((a, i) => {
+  for (let i = alarms.length - 1; i >= 0; i--) {
+    const a = alarms[i];
     if (a.url == alarm.name) {
       alarms.splice(i, 1);
       if(a.incognito){
         browser.windows.create({ incognito: true, url: a.url });
       }
       else{
-        var detail = { url: a.url, active: false, pinned: a.pinned, openInReaderMode: a.openInReaderMode };
+        var detail = { url: a.url, active: a.recurring, pinned: a.pinned, openInReaderMode: a.openInReaderMode };
         if(a.cookieStoreId != undefined){
           detail.cookieStoreId = a.cookieStoreId
         }
-        browser.tabs.create(detail);
+        const tab = await browser.tabs.create(detail);
+        if(a.recurring){
+          // For recurring, the tab is active, so snoozeTab will snooze it again
+          const prefs = await getPreferences();
+          const nextTime = nextMonth(prefs.preferences.TimeOfDay);
+          snoozeTab(nextTime.getTime(), a.type);
+        }
       }
       browser.notifications.create(a.url,
         {
@@ -35,9 +42,8 @@ async function handleAlarm(alarm) {
         }
       );
       clearAlarm(a.url);
-
     }
-  });
+  }
   storeAlarms(alarms);
   reloadViews();
 }
@@ -61,6 +67,14 @@ function validate(urlString) {
   return (allowed_protocols.includes(url.protocol));
 }
 
+function nextMonth(preferredTimeOfDay) {
+  var alarmTime = new Date();
+  alarmTime.setMonth(alarmTime.getMonth() + 1);
+  alarmTime.setHours(preferredTimeOfDay.hours);
+  alarmTime.setMinutes(preferredTimeOfDay.minutes);
+  return alarmTime;
+}
+
 function reloadViews() {
   var windows = browser.extension.getViews();
   for (var extensionWindow of windows) {
@@ -72,7 +86,7 @@ function inReaderMode(tab) {
   return (tab.url.isInReaderMode || /^(about\:reader\?url\=)/.test(tab.url));
 }
 
-async function snoozeTab(delay) {
+async function snoozeTab(delay, type) {
   // var delay = Date.now() + delaySent.delay * 60 * 1000;
   var tabs = await browser.tabs.query({ currentWindow: true, active: true });
   var tab = tabs[0];
@@ -85,7 +99,7 @@ async function snoozeTab(delay) {
     if(alarms == undefined){
       alarms = [];
     }
-    alarms.unshift({ url: tab.url, title: tab.title, delay: delay, pinned: tab.pinned, incognito: tab.incognito, openInReaderMode: tab.isInReaderMode, cookieStoreId: tab.cookieStoreId });
+    alarms.unshift({ url: tab.url, title: tab.title, delay: delay, pinned: tab.pinned, incognito: tab.incognito, openInReaderMode: tab.isInReaderMode, cookieStoreId: tab.cookieStoreId, type: type, recurring: type === "nextMonth" });
     browser.alarms.create(tab.url, { "when": delay });
     storeAlarms(alarms);
     browser.notifications.create(tab.url,
@@ -156,7 +170,7 @@ async function setPreferences(changedPreferences) {
 async function handleMessage(params, sender, sendResponse) {
   switch (params.op) {
     case "snooze":
-      snoozeTab(params.args.time);
+      snoozeTab(params.args.time, params.args.type);
       break;
     case "clearAlarm":
       clearAlarm(params.args);

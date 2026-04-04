@@ -70,7 +70,7 @@ async function snoozeTab(type) {
       return;
       break;
   }
-  browser.runtime.sendMessage({ op: "snooze", args: { time: time.getTime() } });
+  browser.runtime.sendMessage({ op: "snooze", args: { time: time.getTime(), type: type } });
 }
 
 const elements = document.getElementsByClassName("one-click");
