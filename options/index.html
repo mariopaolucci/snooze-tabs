@@ -49,6 +49,19 @@
       <p>The range allowed is from 1 to 6 hours and the default is 3 hours.</p>
     </div>  
   </div>
+
+  <h2>Import/Export Snoozed Tabs</h2>
+  <div class="list">
+    <div class="one">
+      <button id="exportAlarms" class="default-button">Export Snoozed Tabs</button>
+      <p>Download your snoozed tabs as a JSON file for backup.</p>
+    </div>
+    <div class="one">
+      <input type="file" id="importAlarms" accept=".json" />
+      <button id="importButton" class="default-button">Import Snoozed Tabs</button>
+      <p>Upload a JSON file to restore snoozed tabs. This will replace current snoozed tabs.</p>
+    </div>
+  </div>
 </body>
 <script src="js/options.js"></script>
 

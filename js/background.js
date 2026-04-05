@@ -15,7 +15,7 @@ async function handleAlarm(alarm) {
   var alarms = store.alarms;
   for (let i = alarms.length - 1; i >= 0; i--) {
     const a = alarms[i];
-    if (a.url == alarm.name) {
+    if (a.url === alarm.name) {
       alarms.splice(i, 1);
       if(a.incognito){
         browser.windows.create({ incognito: true, url: a.url });
@@ -147,7 +147,7 @@ async function snoozeTab(delay, type, recurring) {
   if (validate(tab.url)) {
     var store = await browser.storage.local.get("alarms");
     var alarms = store.alarms;
-    if(alarms == undefined){
+    if(alarms === undefined){
       alarms = [];
     }
     alarms.unshift({ url: tab.url, title: tab.title, delay: delay, pinned: tab.pinned, incognito: tab.incognito, openInReaderMode: tab.isInReaderMode, cookieStoreId: tab.cookieStoreId, type: type, recurring: recurring });
@@ -181,7 +181,7 @@ async function createAlarms() {
   var alarms = await storedAlarms();
   for (const storedAlarm of alarms) {
     var alarm = await browser.alarms.get(storedAlarm.url);
-    if (alarm == undefined) {
+    if (alarm === undefined) {
       var delay = parseInt(storedAlarm.delay);
       if(delay > Date.now()){
         browser.alarms.create(storedAlarm.url, { when: delay });
@@ -232,6 +232,9 @@ async function handleMessage(params, sender, sendResponse) {
     case "setPreferences":
       setPreferences(params.args);
       break;
+    case "recreateAlarms":
+      createAlarms();
+      break;
   }
 
 }
@@ -258,7 +261,7 @@ async function handleInstall(details) {
       storeAlarms(list);
     }
   }
-  else if (details.reason === "install" || details.temporary == true) {
+  else if (details.reason === "install" || details.temporary === true) {
     storeAlarms([]);
   }
 
